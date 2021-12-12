@@ -1,0 +1,20 @@
+---
+server:
+  host: localhost
+  port: 3000
+  session_key: a random string
+  publicUrl: https://localhost:3000
+database:
+  uri: mongodb uri
+  name: mongodb database name
+osu:
+  v2:
+    clientId: osu client id
+    clientSecret: osu client secret
+discord:
+  clientId: discord client id
+  clientSecret: discord client secret
+  token: discord token
+  guild: discord guild id
+  welcomeChannel: discord channel id
+  verifiedRole: discord role id
