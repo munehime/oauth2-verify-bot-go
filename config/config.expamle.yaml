@@ -15,6 +15,10 @@ discord:
   clientId: discord client id
   clientSecret: discord client secret
   token: discord token
+  prefix: "!"
   guild: discord guild id
   welcomeChannel: discord channel id
   verifiedRole: discord role id
+  moderatorRoles:
+    - role id
+    - role id

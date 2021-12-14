@@ -3,7 +3,6 @@ package authorize
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -43,7 +43,7 @@ func HandleOsuAuthorizationCallback(ctx *gin.Context) {
 
 	token, err := oauth2Service.GetOsuOAuth2Client().Exchange(context.TODO(), code)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	resty := resty.New()
@@ -52,13 +52,13 @@ func HandleOsuAuthorizationCallback(ctx *gin.Context) {
 		SetAuthToken(token.AccessToken).
 		Get("https://osu.ppy.sh/api/v2/me")
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	osuUser := OsuUser{}
 	err = json.Unmarshal(resp.Body(), &osuUser)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	c, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
@@ -74,12 +74,12 @@ func HandleOsuAuthorizationCallback(ctx *gin.Context) {
 	err = doc.Decode(&user)
 	if err != nil {
 		if err != mongo.ErrNoDocuments {
-			log.Fatal(err)
+			log.Errorln(err)
 		}
 	}
 
 	docID := user.ID
-	if user == (userModel.User{}) {
+	if docID == primitive.NilObjectID {
 		user = userModel.User{
 			Osu: userModel.OAuth{
 				DateAdded: time.Now(),
@@ -89,7 +89,7 @@ func HandleOsuAuthorizationCallback(ctx *gin.Context) {
 
 		result, err := collection.InsertOne(c, user)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorln(err)
 		}
 
 		docID = result.InsertedID.(primitive.ObjectID)
@@ -98,8 +98,6 @@ func HandleOsuAuthorizationCallback(ctx *gin.Context) {
 	user.Osu.UserID = strconv.FormatUint(osuUser.ID, 10)
 	user.Osu.Username = osuUser.Username
 	user.Osu.AvatarURL = osuUser.AvatarURL
-	user.Osu.AccessToken = token.AccessToken
-	user.Osu.RefreshToken = token.RefreshToken
 	user.Osu.LastVerified = time.Now()
 
 	user.Country = osuUser.Country
@@ -110,7 +108,7 @@ func HandleOsuAuthorizationCallback(ctx *gin.Context) {
 		bson.M{"_id": docID},
 		bson.M{"$set": user},
 	); err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	session := sessions.Default(ctx)

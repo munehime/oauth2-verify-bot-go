@@ -3,13 +3,13 @@ package authorize
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -62,7 +62,7 @@ func HandleDiscordAuthorizationCallback(ctx *gin.Context) {
 
 	token, err := oauth2Service.GetDiscordOAuth2Client().Exchange(context.TODO(), code)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	resty := resty.New()
@@ -71,13 +71,13 @@ func HandleDiscordAuthorizationCallback(ctx *gin.Context) {
 		SetAuthToken(token.AccessToken).
 		Get("https://discord.com/api/v9/users/@me")
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	discordUser := DiscordUser{}
 	err = json.Unmarshal(resp.Body(), &discordUser)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	c, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
@@ -93,7 +93,7 @@ func HandleDiscordAuthorizationCallback(ctx *gin.Context) {
 	err = doc.Decode(&user)
 	if err != nil {
 		if err != mongo.ErrNoDocuments {
-			log.Fatal(err)
+			log.Errorln(err)
 		}
 
 		ctx.JSON(401, gin.H{
@@ -108,20 +108,15 @@ func HandleDiscordAuthorizationCallback(ctx *gin.Context) {
 		}
 	}
 
-	log.Println(sessionID)
-	log.Println(user)
-
 	user.Discord.UserID = discordUser.ID
 	user.Discord.Username = discordUser.Username + "#" + discordUser.Discriminator
 
 	usr, err := discordService.GetClient().User(discordUser.ID)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	user.Discord.AvatarURL = usr.AvatarURL("")
-	user.Discord.AccessToken = token.AccessToken
-	user.Discord.RefreshToken = token.RefreshToken
 	user.Discord.LastVerified = time.Now()
 
 	user.LastLogin = time.Now()
@@ -131,10 +126,11 @@ func HandleDiscordAuthorizationCallback(ctx *gin.Context) {
 		bson.M{"_id": docID},
 		bson.M{"$set": user},
 	); err != nil {
-		log.Fatal(err)
+		log.Errorln(err)
 	}
 
 	discordService.AddRole(discordUser.ID)
+	discordService.ChangeNickname(discordUser.ID, user.Osu.Username)
 
 	session.Set("discord-username", user.Discord.Username)
 	session.Save()

@@ -2,9 +2,9 @@ package database
 
 import (
 	"context"
-	"log"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -35,7 +35,7 @@ func Connect() {
 		log.Fatalf("Failed while pinging to MongoDB %+v", err)
 	}
 
-	log.Println("Successfully connected to MongoDB!")
+	log.Infoln("Successfully connected to MongoDB!")
 }
 
 func Client() *mongo.Client {
